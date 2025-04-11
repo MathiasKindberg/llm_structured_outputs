@@ -39,11 +39,7 @@ pub fn get_schema<T: schemars::JsonSchema>() -> Schema {
 /// from the OpenAI API and parse the response into said Rust type.
 pub async fn query_openai<T>(messages: Vec<Message>) -> T
 where
-    T: for<'a> serde::Deserialize<'a>
-        + Clone
-        + std::fmt::Debug
-        + serde::Serialize
-        + schemars::JsonSchema,
+    T: for<'a> serde::Deserialize<'a> + schemars::JsonSchema,
 {
     let query = OpenAIChatCompletionQuery {
         model: CONFIG.model.clone(),
@@ -78,19 +74,21 @@ where
     // The response is inside a string field, so we first need to parse the
     // entire response and then pick out the content field to parse separately
     // into our structured output type.
-    let model_response: OpenAIChatCompletionResponse =
-        response.json().await.expect("Response body");
+    let model_response: OpenAIChatCompletionResponse = response
+        .json::<OpenAIChatCompletionResponse>()
+        .await
+        .expect("Response body");
 
     // Parse the first response into our structured output type.
-    serde_json::from_str::<T>(
+    serde_json::from_str(
         &model_response
             .choices
             .get(0)
-            .expect("Response")
+            .expect("Response from OpenAI")
             .message
             .content,
     )
-    .expect("To parse response")
+    .expect("Parseable response")
 }
 
 #[derive(Debug, serde::Serialize)]
